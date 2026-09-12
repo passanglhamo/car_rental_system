@@ -1,6 +1,7 @@
 from dataclasses import dataclass,field
 from datetime import date
 from typing import Optional
+from abc import ABC, abstractmethod
 """
     This is base entity containing common audit fields shared by application entities.
 
@@ -13,8 +14,13 @@ from typing import Optional
             Defaults is None.
 """
 @dataclass
-class BaseEntity:
+class BaseEntity(ABC):
     created_by: str
     created_date: date
     updated_by: Optional[str] = field(default=None, kw_only=True)
     updated_date: Optional[date] = field(default=None, kw_only=True)
+
+    @abstractmethod
+    def summary(self) -> str:
+        """Return a short, human-readable one-line description of the entity."""
+        raise NotImplementedError

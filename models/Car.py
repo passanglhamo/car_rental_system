@@ -31,3 +31,6 @@ class Car(BaseEntity):
     max_period: int
     status: Status = Status.ACTIVE.value
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+
+    def summary(self) -> str:
+        return f"Car: {self.make} {self.model} ({self.year}) - ${self.daily_rate:.2f}/day"

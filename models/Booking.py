@@ -32,3 +32,7 @@ class Booking(BaseEntity):
     return_date: date
     rental_fee: float
     status: str
+
+    def summary(self) -> str:
+        status_label = self.status.value if hasattr(self.status, "value") else self.status
+        return f"Booking {self.booking_no}: {self.start_date} to {self.end_date} - ${self.rental_fee:.2f} ({status_label})"

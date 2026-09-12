@@ -27,6 +27,6 @@ class AuthService:
     """
     def login(self, username, password):
         user = self.user_service.get_user_by_email(username)
-        if user and verify_password(password, user._password):
+        if user and user.check_password(password):
             return user
         return None

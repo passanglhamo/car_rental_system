@@ -1,5 +1,5 @@
 from models.enums import role,booking_status,status
-from utils.display_utils import display_car_list,display_booking_list,display_user_list
+from utils.display_utils import display_car_list,display_booking_list,display_user_list,display_entity_summaries
 from utils.booking_utils import browse_and_book
 from utils.date_utils import get_valid_date,format_date
 from utils.amount_utils import format_currency
@@ -72,7 +72,9 @@ def admin_menu(user, car_service,booking_service,user_service):
         print("9. Add return information")
         print("10. Update Customer information")
         print("11. View Customer List")
-        print("12. Logout")
+        print("12. System Overview")
+        print("13. Log out")
+
         choice = input("Select an option: ").strip()
 
         if choice == "1":
@@ -263,9 +265,15 @@ def admin_menu(user, car_service,booking_service,user_service):
          display_user_list(user_list,"Customer List")
 
         elif choice == "12":
-            print("You have been logged out.")
-            user = None
-            break
+            cars = car_service.get_all_cars()[:5]
+            users = user_service.get_users_by_role(role.CUSTOMER.value)[:5]
+            bookings = booking_service.get_list_by_status(user, booking_status.PENDING.value)[:5]
+            mixed_entities = cars + users + bookings
+            display_entity_summaries(mixed_entities, "SYSTEM OVERVIEW (Cars, Users, Bookings)")
+        elif choice == "13":
+                    print("You have been logged out.")
+                    user = None
+                    break
         else:
             print("Invalid option.\n")
 

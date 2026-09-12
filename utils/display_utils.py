@@ -57,6 +57,7 @@ def display_user_list(users, title):
               f"{user.status:<12}")
 
     print("=" * 75)  
+    
 """
     Method to display a successful account creation message.
 
@@ -99,6 +100,35 @@ def display_booking_list(bookings, title, car_service):
               f"{format_currency(booking.rental_fee):<12}{status:<12}")
 
     print("=" * TABLE_WIDTH)
+    
+"""
+    Method to display a short summary line for any list of entities that
+    subclass BaseEntity (User, Car, Booking, or a mix of them).
+
+    Demonstrates polymorphism: the same summary() call produces a
+    different, type-specific line depending on the actual object type.
+
+    Args:
+        entities: List of BaseEntity subclass instances to display.
+        title: Heading displayed above the list.
+
+    Returns:
+        None
+"""
+def display_entity_summaries(entities, title="OVERVIEW"):
+    print("\n" + "=" * 75)
+    print(f"{title:^75}")
+    print("=" * 75)
+
+    if not entities:
+        print("Nothing to display.")
+        print("=" * 75)
+        return
+
+    for idx, entity in enumerate(entities, start=1):
+        print(f"{idx:<4}{entity.summary()}")
+
+    print("=" * 75)    
     
 """
     Method to display a successful account creation message.
