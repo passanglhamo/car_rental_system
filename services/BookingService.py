@@ -6,6 +6,12 @@ from utils.display_utils import display_booking_success_msg
 from services.LoyaltyService import LoyaltyService
 from services.SettlementService import SettlementService
 from datetime import date,datetime
+"""
+    This service is class responsible for managing car rental bookings.
+
+    It also uses LoyaltyService to calculate loyalty points and
+    SettlementService to calculate late-return settlement fees.
+"""
 class BookingService:
     def __init__(self, car_repository,booking_repository,user_repository):
         self.booking_repository = booking_repository
@@ -14,7 +20,24 @@ class BookingService:
 
         self.loyalty_service = LoyaltyService()
         self.settlement_service = SettlementService()
+    """
+        Method to create a new car rental booking.
 
+        A new Booking object is created and saved when all validations
+        are successful.
+
+        Args:
+            requesting_user (User): Customer making the booking.
+            car (Car): Car selected for rental.
+            start_date (date): Rental start date.
+            end_date (date): Rental end date.
+            rental_fee (float): Calculated rental fee.
+
+        Returns:
+            Booking, str, or None:
+                Returns the saved booking if successful. Returns an
+                error message or None when validation fails.
+        """
     def book_car(self, requesting_user, car, start_date, end_date, rental_fee):
         if requesting_user is None:
             return "User is required."
@@ -73,7 +96,17 @@ class BookingService:
         bookingDetails = self.booking_repository.save(booking,requesting_user)
         display_booking_success_msg(bookingDetails)
         return bookingDetails
+    """
+        Update the status of an existing booking.
 
+        Args:
+            requesting_user (User): User performing the update.
+            booking_id (str): ID of the booking to update.
+            status: New booking status.
+
+        Returns:
+            Booking or None:Updated booking if successful, otherwise None.
+    """
     def update_booking_status(self, requesting_user, booking_id,status):
         
         booking = self.booking_repository.update_status(booking_id, status,requesting_user.id)
@@ -81,7 +114,23 @@ class BookingService:
             print("Booking not found.")
             return None
         return booking
+    
+    """
+        Method to update the payment date and pick-up date of a booking.
 
+        Only users with the Admin role are allowed to perform this
+        operation.
+
+        Args:
+            requesting_user (User): Admin performing the update.
+            booking_no (str): Booking number.
+            payment_date (date): Date on which payment was made.
+            pick_up_date (date): Date on which the car is picked up.
+
+        Returns:
+            None: Prints a success message or an error message.
+        
+    """
     def update_payment_pick_date(self, requesting_user, booking_no,payment_date,pick_up_date):
             if requesting_user is None or not requesting_user.role == role.ADMIN.value:
                 print("Only an Admin can approve bookings.")
@@ -94,6 +143,16 @@ class BookingService:
 
             return print(f"Payment date and pick up date updated successfully.")
     
+    """
+        Method to retrieve bookings with a specified status.
+
+        Args:
+            requesting_user (User): Admin requesting the booking list.
+            status: Booking status used as the search criterion.
+
+        Returns:
+            list: List of bookings matching the specified status.
+    """
     def get_list_by_status(self,requesting_user,status):
         if requesting_user is None or not requesting_user.role == role.ADMIN.value:
             print("Only an Admin can view pending bookings.")
@@ -104,7 +163,17 @@ class BookingService:
             print("No pending bookings.")
 
         return list
+    """
+        Method to retrieve bookings belonging to the requesting user with
+        a specified booking status.
 
+        Args:
+            requesting_user (User): User whose bookings are requested.
+            status: Booking status used to filter the results.
+
+        Returns:
+            list: List of matching bookings.
+    """
     def get_list_by_status_user(self,requesting_user,status):
            
             list = self.booking_repository.find_by_status_user_id(status,requesting_user.id)
@@ -112,18 +181,54 @@ class BookingService:
                 print("No pending bookings.")
     
             return list
+    """
+        Method to retrieve all bookings belonging to the requesting user.
 
+        Args:
+            requesting_user (User): User whose bookings are requested.
+
+        Returns:
+            list: List of bookings belonging to the user.
+    """
     def get_list_by_user_id(self,requesting_user):
             list = self.booking_repository.find_by_user_id(requesting_user.id)
             if not list:
                 print("No pending bookings.")
             return list
+    """
+        Method to retrieve a booking using its booking number.
 
+        Args:
+            booking_no (str): Unique booking number.
+
+        Returns:
+            Booking or None: Matching booking if found.
+    """
     def get_by_booking_no(self, booking_no):
         return self.booking_repository.find_by_booking_no(booking_no)
+    
+    """
+        Method to record the return of a rented car.
 
+        The method determines whether the car was returned on time
+        or late. For on-time returns, loyalty points are calculated.
+        For late returns, a settlement fee is calculated instead.
+
+        An administrator must confirm the operation before the return
+        is permanently recorded.
+
+        Args:
+            requesting_user (User): Admin recording the car return.
+            booking (Booking): Booking associated with the returned car.
+            return_date (date): Actual date the car was returned.
+
+        Returns:
+            Booking or None:
+                Updated booking if the return was successfully recorded;
+                otherwise None.
+    """
     def record_return(self, requesting_user, booking, return_date):
-
+        
      if requesting_user is None or requesting_user.role != role.ADMIN.value:
         print("Only an Admin can record a return.")
         return None
@@ -187,7 +292,8 @@ class BookingService:
         booking.booking_no,
         return_date,
         settlement_fee,
-        requesting_user.id
+        requesting_user.id,
+        booking_status.RETURNED.value
      )
 
      if updated_booking is None:
@@ -196,7 +302,7 @@ class BookingService:
 
      self.user_repository.update_loyal_point(
              loyalty_points,
-             requesting_user.id
+             booking.user_id
           )
 
      print("\nReturn recorded successfully.")

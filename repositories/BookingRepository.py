@@ -3,54 +3,82 @@ from models.Booking import Booking
 
 from datetime import datetime,date
 
+"""
+This module provides database operations for the Booking entity.
+
+The BookingRepository class is responsible for creating, updating,
+retrieving, and checking booking records in the database. It also
+provides functionality for generating unique booking numbers and
+checking whether a car is already booked for a specified rental period.
+"""
 class BookingRepository:
 
     def __init__(self, db):
         self.db = db
         
+    """
+        Method to save a new booking information.
 
+        Args:
+            booking (Booking): Booking object containing the booking details.
+            user: User creating the booking.
+
+        Returns:
+            Booking: The saved booking.
+    """
     def save(self, booking: Booking,user):
 
         cursor = self.db.cursor()
 
         cursor.execute(
-    """
-    INSERT INTO booking (
-        id,
-        car_id,
-        user_id,
-        booking_no,
-        start_date,
-        end_date,
-        rental_fee,
-        status,
-        created_by,
-        created_date,
-        updated_by,
-        updated_date
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-    (
-        booking.id,
-        booking.car_id,
-        booking.user_id,
-        booking.booking_no,
-        booking.start_date,
-        booking.end_date,
-        booking.rental_fee,
-        booking.status,
-        user.id,          
-        date.today(),     
-        None,             
-        None              
+            """
+            INSERT INTO booking (
+            id,
+            car_id,
+            user_id,
+            booking_no,
+            start_date,
+            end_date,
+            rental_fee,
+            status,
+            created_by,
+            created_date,
+            updated_by,
+            updated_date
+        )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            booking.id,
+            booking.car_id,
+            booking.user_id,
+            booking.booking_no,
+            booking.start_date,
+            booking.end_date,
+            booking.rental_fee,
+            booking.status,
+            user.id,          
+            date.today(),     
+            None,             
+            None              
         )
         )
 
         self.db.commit()
 
         return booking
+    
+    """
+        Method to update booking status.
 
+        Args:
+            booking_id: Unique identifier of the booking.
+            status: New booking status.
+            user_id: ID of the user performing the update.
+
+        Returns:
+            Booking or None: Updated booking if found.
+    """
     def update_status(self, booking_id, status, user_id):
 
         cursor = self.db.cursor()
@@ -74,7 +102,18 @@ class BookingRepository:
         self.db.commit()
 
         return self.find_by_id(booking_id)
+    """
+        Method to update payment and pick up date.
 
+        Args:
+            booking_no: Booking reference number.
+            payment_date (date): Date payment was made.
+            pick_up_date (date): Date the customer picks up the car.
+            user_id: ID of the user performing the update.
+
+        Returns:
+            Booking or None: Updated booking if found.
+    """
     def update_payment_pick_date(self, booking_no, payment_date,pick_up_date,user_id):
         cursor = self.db.cursor()
 
@@ -93,8 +132,22 @@ class BookingRepository:
         self.db.commit()
 
         return self.find_by_booking_no(booking_no)
+    
+    """
+        Method where it record the return information of a rented car.
 
-    def record_return(self, booking_no, return_date,settlement_fee,user_id):
+        Updates the return date and settlement fee for the booking.
+
+        Args:
+            booking_no: Booking reference number.
+            return_date (date): Date the car was returned.
+            settlement_fee (float): It is the additional fee calculated at when user return date exceed end date. 
+            user_id: ID of the user recording the return.
+
+        Returns:
+            Booking or None: Updated booking if found.
+    """
+    def record_return(self, booking_no, return_date,settlement_fee,user_id,status):
             cursor = self.db.cursor()
     
             cursor.execute(
@@ -102,17 +155,26 @@ class BookingRepository:
                 UPDATE booking
                 SET return_date = ?,
                 settlement_fee=?,
+                status=?,
                 updated_by = ?,
                 updated_date = ?
                 WHERE booking_no = ?
                 """,
-                (return_date,settlement_fee, user_id,date.today(),booking_no)
+                (return_date,settlement_fee,status, user_id,date.today(),booking_no)
             )
     
             self.db.commit()
     
             return self.find_by_booking_no(booking_no)
+    """
+        Method to search a booking using its unique ID.
 
+        Args:
+            booking_id: Unique booking identifier.
+
+        Returns:
+            Booking or None: Matching booking, or None if not found.
+    """
     def find_by_id(self, booking_id):
 
         cursor = self.db.cursor()
@@ -133,7 +195,16 @@ class BookingRepository:
             return None
 
         return self._row_to_booking(row)
+    
+    """
+        Method to search all bookings with a specific status.
 
+        Args:
+            status: Booking status to search for.
+
+        Returns:
+            list[Booking]: List of matching bookings.
+    """
     def find_by_status(self, status):
         cursor = self.db.cursor()
         cursor.execute(
@@ -146,7 +217,15 @@ class BookingRepository:
         )
         rows = cursor.fetchall()
         return [self._row_to_booking(row) for row in rows]
+    
+    """
+        Method to search a booking using its booking number.
 
+        Args:
+            booking_no: Booking reference number.
+
+        Returns:
+    """     
     def find_by_booking_no(self, booking_no):
     
             cursor = self.db.cursor()
@@ -169,6 +248,15 @@ class BookingRepository:
     
             return self._row_to_booking(row)
 
+    """
+        Method to search all bookings by a user id.
+
+        Args:
+            user_id: ID of the customer.
+
+        Returns:
+            list[Booking]: List of matching bookings.
+    """
     def find_by_user_id(self, user_id):
             cursor = self.db.cursor()
             cursor.execute(
@@ -180,7 +268,17 @@ class BookingRepository:
             )
             rows = cursor.fetchall()
             return [self._row_to_booking(row) for row in rows]
-    
+
+    """
+        Method to search a booking using its status and user id.
+
+        Args:
+            status: Booking status to search for.
+            user_id: ID of the customer.
+
+        Returns:
+            list[Booking]: Matching bookings.
+    """
     def find_by_status_user_id(self, status,user_id):
                 cursor = self.db.cursor()
                 cursor.execute(
@@ -193,6 +291,13 @@ class BookingRepository:
                 rows = cursor.fetchall()
                 return [self._row_to_booking(row) for row in rows]
 
+    
+    """
+        Method to generate a unique booking number based on the current date.
+
+        Returns:
+            str: Booking number in the format BDDMMYY-00001.
+    """
     def generate_booking_number(self):
 
         today = datetime.now().strftime("%d%m%y")
@@ -218,8 +323,22 @@ class BookingRepository:
         else:
             next_number = 1
 
-        return f"B{today}-{next_number:05d}"    
+        return f"B{today}-{next_number:05d}"   
+     
+    """
+        Method to check whether a car is already booked during a specified period.
 
+        Only PENDING and APPROVED bookings are considered when checking
+        for booking conflicts.
+
+        Args:
+            car_id: ID of the car.
+            start_date (date): Requested rental start date.
+            end_date (date): Requested rental end date.
+
+        Returns:
+            bool: True if a conflicting booking exists; otherwise False.
+    """
     def has_booking(self, car_id, start_date, end_date):
         cursor = self.db.cursor()
 

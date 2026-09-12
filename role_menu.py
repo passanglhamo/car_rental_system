@@ -1,9 +1,10 @@
-from models.enums import role,booking_status
-from utils.display_utils import display_car_list,display_booking_list
+from models.enums import role,booking_status,status
+from utils.display_utils import display_car_list,display_booking_list,display_user_list
 from utils.booking_utils import browse_and_book
 from utils.date_utils import get_valid_date,format_date
 from utils.amount_utils import format_currency
-
+from utils.validation_utils import get_valid_email,get_valid_password
+from datetime import datetime
 def system_admin_menu(user,user_service):
     while True:
         print("\nSystem Admin Menu:")
@@ -15,8 +16,8 @@ def system_admin_menu(user,user_service):
         if choice == "1":
             print("=========== Add a new Admin ===========")
             name = input("Enter your full name: ").strip()
-            email = input("Enter your email: ").strip()
-            password = input("Enter the password: ").strip()
+            email = get_valid_email()
+            password = get_valid_password()
             phone = input("Enter your contact number: ").strip()
             new_admin = user_service.save(
                             user,
@@ -57,7 +58,7 @@ def system_admin_menu(user,user_service):
         else:
             print("Invalid option. Please try again.")
 
-def admin_menu(user, car_service,booking_service):
+def admin_menu(user, car_service,booking_service,user_service):
     while True:
         print(f"\n--- Admin Menu ({user.name}) ---")
         print("1. View available cars")
@@ -67,9 +68,11 @@ def admin_menu(user, car_service,booking_service):
         print("5. View pending booking requests")
         print("6. Approve a booking")
         print("7. Reject a booking")
-        print("8. Update payment status")
+        print("8. Update payment date and pick up date")
         print("9. Add return information")
-        print("10. Logout")
+        print("10. Update Customer information")
+        print("11. View Customer List")
+        print("12. Logout")
         choice = input("Select an option: ").strip()
 
         if choice == "1":
@@ -88,10 +91,10 @@ def admin_menu(user, car_service,booking_service):
                     continue
 
                 break
-            cars = car_service.find_by_available(start_date,end_date)
+            cars = car_service.get_available_cars(start_date,end_date)
             display_car_list(cars,"Available Cars")
         elif choice == "2":
-            cars = car_service.find_all()
+            cars = car_service.get_all_cars()
             display_car_list(cars,"Cars List")
 
         elif choice == "3":
@@ -110,7 +113,7 @@ def admin_menu(user, car_service,booking_service):
                 print("\nFailed to add car.")
 
         elif choice == "4":
-            cars = car_service.find_all()
+            cars = car_service.get_all_cars()
             display_car_list(cars, "All Cars")
             try:
                 car_no = input("Enter the # of the car to update: ").strip()
@@ -173,10 +176,21 @@ def admin_menu(user, car_service,booking_service):
                 return None
 
             display_booking_details(booking)
-            payment_date = get_valid_date(f"Enter the payment date (DD-MM-YYYY): ")
-            pick_up_date = get_valid_date(f"Enter the pick up date (DD-MM-YYYY): ")
-
+           
             try:
+                start_date = datetime.strptime(
+                        booking.start_date,
+                            "%Y-%m-%d"
+                        ).date()  
+                payment_date = get_valid_date(f"Enter the payment date (DD-MM-YYYY): ")
+                if payment_date >= start_date: 
+                        print("Payment date must be before the booking start date.") 
+                        continue 
+                pick_up_date = get_valid_date(f"Enter the pick up date (DD-MM-YYYY): ")
+                
+                if pick_up_date >= start_date: 
+                    print("Pick-up date must be before the booking start date.") 
+                    continue
                 booking_service.update_payment_pick_date(user,booking_no,payment_date,pick_up_date)
             except ValueError:
                 print(f"Invalid date. Please use DD-MM-YYYY.") 
@@ -202,16 +216,60 @@ def admin_menu(user, car_service,booking_service):
             try:
                 booking_service.record_return(user,booking,return_date)
             except ValueError:
-                    print(f"Invalid date. Please use DD-MM-YYYY.")       
-           
+                    print(f"Invalid date. Please use DD-MM-YYYY.") 
+
         elif choice == "10":
+                    print("\n=========== Update Customer Information ===========")
+                    email = input("Enter email: ").strip()
+                    if not email:
+                         continue     
+                    updated_user = user_service.get_user_by_email(email)
+                    if updated_user is None:
+                            print("User not found.")
+                            continue
+                    print("\nCurrent Customer Information:")
+                    print(f"Name: {updated_user.name}")
+                    print(f"Phone: {updated_user.phone}")
+                    print(f"Active: {updated_user.status}")
+
+                    # Update name
+                    name = input(f"\nEnter new name [{updated_user.name}]: ").strip()
+                    if name:
+                        updated_user.name = name
+                    phone = input(f"Enter new phone [{updated_user.phone}]: ").strip()
+                    if phone:
+                        updated_user.phone = phone   
+
+                    new_status = input(
+                f"Enter status (active/inactive) [{updated_user.status}]: "
+                ).strip().lower()
+
+                    if new_status == "active":
+                        updated_user.status = status.ACTIVE.value
+                    elif new_status == "inactive":
+                        updated_user.status = status.INACTIVE.value
+                    elif new_status:
+                        print("Invalid status. Please enter active or inactive.")
+                        continue     
+
+                    user_db = user_service.update_user(updated_user.id,updated_user,user.id)
+                    if user_db: 
+                        print("\nCustomer information updated successfully.")
+                    else: 
+                        print("\nCustomer information could not be updated.")
+
+        elif choice == "11":
+         user_list = user_service.get_users_by_role(role.CUSTOMER.value)
+         display_user_list(user_list,"Customer List")
+
+        elif choice == "12":
             print("You have been logged out.")
             user = None
             break
         else:
             print("Invalid option.\n")
 
-def customer_menu(user, car_service,auth_service,user_service, booking_service):
+def customer_menu(user, car_service,auth_service,user_service, booking_service,loyalty_service):
 
     while True:
         print("\n" + "=" * 50)
@@ -223,14 +281,15 @@ def customer_menu(user, car_service,auth_service,user_service, booking_service):
         print("1. Browse Cars")
         print("2. My Bookings")
         print("3. Cancel Booking")
-        print("4. Logout")
+        print("4. Profile")
+        print("5. Logout")
 
         print("=" * 50)
 
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            browse_and_book(user,car_service,auth_service,user_service,booking_service)
+            browse_and_book(user,car_service,auth_service,user_service,booking_service,loyalty_service)
         elif choice == "2":
             bookings = booking_service.get_list_by_user_id(user)
             display_booking_list(
@@ -246,7 +305,16 @@ def customer_menu(user, car_service,auth_service,user_service, booking_service):
                            booking_status.CANCELLED.value,
                            "Cancel"
                            )
-        elif choice == "4":
+        elif choice == "4":    
+            print("\n================ My Profile ================") 
+            user_db = user_service.get_user_by_email(user.email)
+            print(f"Name : {user_db.name}") 
+            print(f"Email : {user_db.email}") 
+            print(f"Phone : {user_db.phone}") 
+            print(f"Status : {user_db.status}") 
+            print(f"Loyalty Points : {user_db.loyal_point or 0}") 
+            print("============================================")
+        elif choice == "5":
             print("You have been logged out.")
             user = None
             return

@@ -1,10 +1,11 @@
 from utils.display_utils import display_car_list,display_acc_creation_success
 from models.enums import role
 from utils.date_utils import get_valid_date
-
-def browse_and_book(user,car_service,auth_service,user_service,booking_service):
+from utils.validation_utils import get_valid_email,get_valid_password
+from datetime import date
+def browse_and_book(user,car_service,auth_service,user_service,booking_service,loyalty_service):
     print("\n=== Browse Available Cars ===")
-    cars = car_service.find_all()
+    cars = car_service.get_all_cars()
 
     if not cars:
         print("No cars currently available.")
@@ -73,6 +74,25 @@ def browse_and_book(user,car_service,auth_service,user_service,booking_service):
         return
 
     rental_fee = num_days * selected_car.daily_rate
+    userDb=user_service.get_user_by_email(user.email);
+    loyal_points = userDb.loyal_point or 0
+    
+    if loyal_points > 0: 
+        use_points = input( f"You have {loyal_points} loyalty points. " 
+                           "Do you want to use them for this booking? (yes/no): " 
+                           ).strip().lower()
+        if use_points == "yes":  
+            total_points_value = loyalty_service.calculate_amount(loyal_points)
+            if rental_fee >= total_points_value:
+                points_to_use = loyal_points
+                loyalty_discount = total_points_value
+            else:
+                points_to_use = int(rental_fee * loyalty_service.POINTS_PER_DOLLAR)
+                loyalty_discount = loyalty_service.calculate_discount(points_to_use)
+        
+        rental_fee -= loyalty_discount
+        userDb.loyal_point -= points_to_use
+        user_service.update_user(userDb.id,userDb,date.today()) 
 
     print("\n=== Booking Summary ===")
     print(f"  Car          : {selected_car.make} {selected_car.model} ({selected_car.year})")
@@ -82,32 +102,27 @@ def browse_and_book(user,car_service,auth_service,user_service,booking_service):
     print(f"  Daily Rate   : ${selected_car.daily_rate:.2f}")
     print(f"  Rental Fee   : ${rental_fee:.2f}")
 
-
-    confirm = input("\nDo you want to proceed with this booking? (y/n): ").strip().lower()
-    if confirm != "y":
-        print("Booking cancelled.")
-        return
         
     booking_service.book_car(user, selected_car, start_date, end_date, rental_fee)
 
 def login(auth_service):
     print("\n--- Login ---")
-    username = input("Username: ").strip()
+    email = input("Email: ").strip()
     password = input("Password: ").strip()
-    user = auth_service.login(username, password)
+    user = auth_service.login(email, password)
 
     if user is None:
         print("Invalid credentials.")
         return None
 
-    print(f"Welcome back, {username} ({user.role})!")
+    print(f"Welcome back, {email} ({user.role})!")
     return user
 
 def signup_customer(user,user_service):
     print("\n--- Sign Up (Customer) ---")
     name = input("Enter your full name: ").strip()
-    email = input("Enter your email: ").strip()
-    password = input("Enter your password: ").strip()
+    email = get_valid_email()
+    password = get_valid_password()
     phone = input("Enter your contact number: ").strip()
     try:
         user = user_service.save(user,name,email,password,phone,role.CUSTOMER.value)

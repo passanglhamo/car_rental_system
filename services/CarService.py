@@ -3,28 +3,78 @@ from models.Car import Car
 from models.enums import status
 import uuid
 from datetime import date
+"""
+    This service class is responsible for managing car-related business operations.
 
+    CarService acts as an intermediate layer between the application
+    and CarRepository. It provides functionality to retrieve, add,
+    update, and search for cars based on their availability.
+"""
 class CarService:
     def __init__(self, car_repository):
         self.car_repository = car_repository
         self.cars = []
+    """
+        method to retrieve all cars from the database.
 
-    """Method to get all cars"""
-    def find_all(self):
+        Returns:
+            list: A list containing all cars.
+    """
+    def get_all_cars(self):
         return self.car_repository.find_all()
 
-    """Method to get latest cars as per limit"""
-    def find_by_limit(self, limit):
+   
+    """
+        Method to get the latest cars up to the specified limit.
+
+        Args:
+            limit (int): Maximum number of cars to return.
+                Defaults to 5.
+
+        Returns:
+            list[Car]: A list of the latest car records.
+    """
+    def get_cars_by_limit(self, limit):
         return self.car_repository.find_by_limit(limit)
 
-    def find_by_available(self, start_date, end_date):
+    """
+        Method to get cars that are available during a specified rental period.
+
+        Cars with existing PENDING or APPROVED bookings that overlap
+        with the requested rental period are excluded.
+
+        Args:
+            start_date (date): Requested rental start date.
+            end_date (date): Requested rental end date.
+
+        Returns:
+            list[Car]: List of cars available for the requested period.
+    """
+    def get_available_cars(self, start_date, end_date):
         return self.car_repository.find_by_available(start_date, end_date)
     
-    """Method to get a car by its ID"""
+    """"
+            Method to get a car using its ID.
+    
+            Args:
+                car_id (str): Unique identifier of the car.
+    
+            Returns:
+                Car or None: The matching car if found; otherwise None.
+    """
     def get_car_by_id(self, car_id):
         return self.car_repository.find_by_id(car_id)
 
-    """Method to add a new car"""
+    """
+            Method to save a car record to the database.
+    
+            Args:
+                car (Car): Car object containing the details.
+                user_id (str): ID of the user creating the car record.
+    
+            Returns:
+                Car: The saved car object.
+    """ 
     def save(self,user):
         car = Car(
             id=str(uuid.uuid4()),
@@ -43,7 +93,17 @@ class CarService:
         )
         return self.car_repository.save(car,user.id)
 
-    """Method to update an existing car"""
+    """
+          Method to update an existing car record.
+  
+          Args:
+              car_id (str): ID of the car to update.
+              updated_car (Car): Car object containing the updated details.
+              user_id (str): ID of the user performing the update.
+  
+          Returns:
+              Car: Updated car object.
+    """
     def update_car(self, car_id,user):
         existing_car = self.car_repository.find_by_id(car_id)
         if existing_car is None:
